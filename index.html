@@ -3,97 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DOTUBE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>DOTUBE - تحميل فيديوهات يوتيوب</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background-color: #f4f4f9; text-align: center; padding: 50px; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); display: inline-block; width: 100%; max-width: 500px; }
+        input[type="text"] { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        select { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        button { background: #ff0000; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #cc0000; }
+        #progress { margin-top: 20px; font-weight: bold; color: #333; }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-
-    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-200">
-        <!-- العنوان وحقوق الملكية -->
-        <h1 class="text-5xl font-extrabold mb-1 text-center text-red-600 tracking-wider">DOTUBE</h1>
-        <p class="text-center text-sm text-gray-500 mb-6 font-bold uppercase tracking-widest">Developed by ahmed shawki</p>
-        
-        <label class="block text-sm font-medium text-gray-700 mb-2">رابط الفيديو:</label>
-        <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." 
-               class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-red-500 text-left" dir="ltr">
-        
-        <label class="block text-sm font-medium text-gray-700 mb-2">صيغة التحميل:</label>
-        <select id="format" class="w-full p-3 border border-gray-300 rounded-lg mb-6 bg-white focus:outline-none focus:ring-2 focus:ring-red-500">
-            <option value="mp4">فيديو عالية الجودة (MP4)</option>
+<body>
+    <div class="container">
+        <h2>DOTUBE 🚀</h2>
+        <p>أداة التحميل الخاصة بالمهندس أحمد الشرقاوي</p>
+        <input type="text" id="url" placeholder="حط رابط اليوتيوب هنا..." required><br>
+        <select id="format">
+            <option value="mp4">فيديو (MP4)</option>
             <option value="mp3">صوت فقط (MP3)</option>
-        </select>
-        
-        <button id="downloadBtn" onclick="startDownload()" 
-                class="w-full bg-red-600 text-white p-3 rounded-lg font-bold hover:bg-red-700 transition duration-200">
-            تحميل الآن
-        </button>
-
-        <!-- شريط التقدم (مخفي في البداية) -->
-        <div id="progressContainer" class="hidden mt-6">
-            <div class="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
-                <div id="progressBar" class="bg-red-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <p id="progressText" class="text-center text-sm font-bold text-gray-700">0%</p>
-        </div>
-
-        <!-- رسالة النجاح والدعوة (مخفية في البداية) -->
-        <div id="successMessage" class="hidden mt-6 bg-green-50 border border-green-200 p-4 rounded-lg text-center">
-            <p class="text-lg text-green-700 font-extrabold">تم التحميل بنجاح! 🎉</p>
-            <p class="text-md text-green-600 font-bold mt-2">. أدعي لعمك احمد بك الشرقاوي</p>
-        </div>
+        </select><br>
+        <button onclick="startDownload()">تحميل</button>
+        <div id="progress"></div>
     </div>
 
     <script>
-        let progressInterval;
-
-        function startDownload() {
-            const url = document.getElementById('youtubeUrl').value;
+        async function startDownload() {
+            const url = document.getElementById('url').value;
             const format = document.getElementById('format').value;
-            const btn = document.getElementById('downloadBtn');
-            
-            if(!url.includes('youtube.com') && !url.includes('youtu.be')) {
-                alert("يرجى إدخال رابط يوتيوب صحيح");
+            const progressDiv = document.getElementById('progress');
+
+            if (!url) {
+                alert('من فضلك ادخل الرابط أولاً!');
                 return;
             }
 
-            // إخفاء الدعوة وإظهار العداد
-            document.getElementById('progressContainer').classList.remove('hidden');
-            document.getElementById('successMessage').classList.add('hidden');
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressText').innerText = '0%';
-            btn.disabled = true;
-            btn.innerText = 'جاري السحب من يوتيوب...';
+            progressDiv.innerHTML = 'جاري التحضير والتحميل... ⏳';
 
-            // إرسال طلب التحميل
-            const apiUrl = `http://localhost:8000/download?url=${encodeURIComponent(url)}&format=${format}`;
-            window.location.href = apiUrl; 
+            try {
+                const response = await fetch(`/download?url=${encodeURIComponent(url)}&format=${format}`);
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'حدث خطأ أثناء التحميل');
+                }
 
-            // مراقبة العداد من السيرفر كل ثانية
-            progressInterval = setInterval(() => {
-                fetch(`http://localhost:8000/progress?url=${encodeURIComponent(url)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        let progressValue = data.progress;
-                        let cleanNum = progressValue.replace(/[^0-9.]/g, ''); // استخراج الرقم فقط
-                        
-                        if(cleanNum) {
-                            document.getElementById('progressBar').style.width = cleanNum + '%';
-                            document.getElementById('progressText').innerText = progressValue;
-                        }
-
-                        // لما يوصل 100%
-                        if(progressValue.includes('100') || progressValue === '100%') {
-                            clearInterval(progressInterval);
-                            btn.disabled = false;
-                            btn.innerText = 'تحميل فيديو جديد';
-                            
-                            // إخفاء العداد وإظهار الدعوة
-                            document.getElementById('progressContainer').classList.add('hidden');
-                            document.getElementById('successMessage').classList.remove('hidden');
-                        }
-                    })
-                    .catch(err => console.error(err));
-            }, 1000); 
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = ''; 
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                
+                progressDiv.innerHTML = '✅ تم التحميل بنجاح! دعوة لعمنا أحمد بك الشرقاوي بقى 😉';
+            } catch (error) {
+                progressDiv.innerHTML = '❌ خطأ: ' + error.message;
+            }
         }
     </script>
 </body>
