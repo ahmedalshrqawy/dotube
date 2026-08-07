@@ -2,7 +2,7 @@ import os
 import re
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import yt_dlp
 
 app = FastAPI()
@@ -15,32 +15,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# قاموس لتخزين نسبة التحميل لكل فيديو
 progress_data = {}
 
 def progress_hook(d, url):
     if d['status'] == 'downloading':
-        # سحب النسبة المئوية وتنظيفها من أي نصوص غريبة
         percent = d.get('_percent_str', '0%').strip()
         percent = re.sub(r'\x1b[^m]*m', '', percent) 
         progress_data[url] = percent
     elif d['status'] == 'finished':
         progress_data[url] = '100%'
 
+# ده الجزء اللي بيخلي الصفحة تظهر لما تفتح الرابط
+@app.get("/")
+def serve_html():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
 @app.get("/progress")
 def get_progress(url: str):
-    # إرجاع نسبة التحميل الحالية للفرونت إند
     return {"progress": progress_data.get(url, "0%")}
 
 @app.get("/download")
 async def download_video(url: str, format: str = "mp4"):
     try:
-        progress_data[url] = "0%" # تصفير العداد قبل البدء
+        progress_data[url] = "0%"
         
         ydl_opts = {
             "outtmpl": "downloads/%(title)s.%(ext)s",
             "noplaylist": True,
-            "progress_hooks": [lambda d: progress_hook(d, url)] # ربط العداد
+            "progress_hooks": [lambda d: progress_hook(d, url)]
         }
 
         if format == "mp3":
